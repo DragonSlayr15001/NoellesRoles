@@ -6,7 +6,6 @@
   "client": [
     "CustomRolesRoleNameRendererMixin",
     "InstinctMixin",
-    "killerfix.ShowKillerRolesAsKillerOnEndMixin",
     "morphling.MorphlingRendererMixin",
     "morphling.MorphlingRoleNameRendererMixin",
     "morphling.MorphlingScreenMixin",

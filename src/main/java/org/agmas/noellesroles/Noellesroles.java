@@ -1,36 +1,24 @@
 package org.agmas.noellesroles;
 
-import com.mojang.brigadier.arguments.StringArgumentType;
-import dev.doctor4t.trainmurdermystery.TMM;
 import dev.doctor4t.trainmurdermystery.api.TMMRoles;
 import dev.doctor4t.trainmurdermystery.cca.GameWorldComponent;
 import dev.doctor4t.trainmurdermystery.client.gui.RoleAnnouncementTexts;
 import dev.doctor4t.trainmurdermystery.game.GameConstants;
 import net.fabricmc.api.ModInitializer;
 import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
-import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
 import net.fabricmc.fabric.api.networking.v1.PayloadTypeRegistry;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
 import net.fabricmc.loader.impl.util.log.Log;
 import net.fabricmc.loader.impl.util.log.LogCategory;
-import net.minecraft.command.argument.EntityArgumentType;
-import net.minecraft.entity.Entity;
-import net.minecraft.entity.EntityType;
 import net.minecraft.entity.effect.StatusEffectInstance;
 import net.minecraft.entity.effect.StatusEffects;
 import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.network.packet.CustomPayload;
-import net.minecraft.network.packet.s2c.common.DisconnectS2CPacket;
-import net.minecraft.registry.Registries;
-import net.minecraft.registry.tag.TagKey;
-import net.minecraft.server.command.CommandManager;
-import net.minecraft.server.network.ServerPlayerEntity;
-import net.minecraft.text.Text;
-import net.minecraft.util.Formatting;
 import net.minecraft.util.Identifier;
 import net.minecraft.util.math.Vec3d;
-import net.minecraft.world.World;
-import net.minecraft.world.border.WorldBorder;
+import org.agmas.noellesroles.commands.ForceRoleCommand;
+import org.agmas.noellesroles.commands.ListRolesCommand;
+import org.agmas.noellesroles.commands.SetEnabledRoleCommand;
 import org.agmas.noellesroles.config.NoellesRolesConfig;
 import org.agmas.noellesroles.morphling.MorphlingPlayerComponent;
 import org.agmas.noellesroles.packet.AbilityC2SPacket;
@@ -74,13 +62,24 @@ public class Noellesroles implements ModInitializer {
     public static final CustomPayload.Id<MorphC2SPacket> MORPH_PACKET = MorphC2SPacket.ID;
     public static final CustomPayload.Id<SwapperC2SPacket> SWAP_PACKET = SwapperC2SPacket.ID;
     public static final CustomPayload.Id<AbilityC2SPacket> ABILITY_PACKET = AbilityC2SPacket.ID;
+    public static final ArrayList<TMMRoles.Role> VANNILA_ROLES = new ArrayList<>();
+    public static final ArrayList<Identifier> VANNILA_ROLE_IDS = new ArrayList<>();
     @Override
     public void onInitialize() {
+        VANNILA_ROLES.add(TMMRoles.KILLER);
+        VANNILA_ROLES.add(TMMRoles.VIGILANTE);
+        VANNILA_ROLES.add(TMMRoles.CIVILIAN);
+        VANNILA_ROLES.add(TMMRoles.LOOSE_END);
+        VANNILA_ROLE_IDS.add(TMMRoles.LOOSE_END.identifier());
+        VANNILA_ROLE_IDS.add(TMMRoles.VIGILANTE.identifier());
+        VANNILA_ROLE_IDS.add(TMMRoles.CIVILIAN.identifier());
+        VANNILA_ROLE_IDS.add(TMMRoles.KILLER.identifier());
+        NoellesRolesConfig.HANDLER.save();
+        NoellesRolesConfig.HANDLER.load();
         ModItems.init();
 
         rolePlayerCaps.put(JESTER_ID, 1);
         rolePlayerCaps.put(HOST_ID, 1);
-        NoellesRolesConfig.HANDLER.load();
 
         PayloadTypeRegistry.playC2S().register(MorphC2SPacket.ID, MorphC2SPacket.CODEC);
         PayloadTypeRegistry.playC2S().register(AbilityC2SPacket.ID, AbilityC2SPacket.CODEC);
@@ -155,53 +154,9 @@ public class Noellesroles implements ModInitializer {
 
     public void registerCommands() {
         CommandRegistrationCallback.EVENT.register((dispatcher, registryAccess, environment) -> {
-            dispatcher.register(CommandManager.literal("forceModdedRole").requires(serverCommandSource -> serverCommandSource.hasPermissionLevel(2)).then(CommandManager.argument("player", EntityArgumentType.player()).then(CommandManager.argument("role", StringArgumentType.string()).executes(commandContext -> {
-                ServerPlayerEntity entity = EntityArgumentType.getPlayer(commandContext, "player");
-                String roleName = StringArgumentType.getString(commandContext, "role");
-                for (TMMRoles.Role role : TMMRoles.ROLES) {
-                    if (role.identifier().getPath().equals(roleName)) {
-                        forceRoles.put(entity,role);
-                        commandContext.getSource().sendMessage(Text.literal("Forced Role"));
-                        return 1;
-                    }
-                }
-                commandContext.getSource().sendMessage(Text.literal("Invalid role/player name").withColor(Color.RED.getRGB()));
-                return 1;
-            }))));
-            dispatcher.register(CommandManager.literal("banRole").requires(serverCommandSource -> serverCommandSource.hasPermissionLevel(2)).then(CommandManager.argument("roleName", StringArgumentType.string()).executes((commandContext)->{
-
-                String roleName = StringArgumentType.getString(commandContext, "roleName");
-                for (TMMRoles.Role role : TMMRoles.ROLES) {
-                    if (role.identifier().getPath().equals(roleName)) {
-                        NoellesRolesConfig.HANDLER.instance().disabled.add(roleName);
-                        NoellesRolesConfig.HANDLER.save();
-                        commandContext.getSource().sendMessage(Text.literal("Banned Role"));
-                        return 1;
-                    }
-                }
-                commandContext.getSource().sendMessage(Text.literal("Invalid role name, use /getRoleNames to get role names.").withColor(Color.RED.getRGB()));
-                return 1;
-            })));
-            dispatcher.register(CommandManager.literal("unbanRole").requires(serverCommandSource -> serverCommandSource.hasPermissionLevel(2)).then(CommandManager.argument("roleName", StringArgumentType.string()).executes((commandContext)->{
-
-                String roleName = StringArgumentType.getString(commandContext, "roleName");
-                for (TMMRoles.Role role : TMMRoles.ROLES) {
-                    if (role.identifier().getPath().equals(roleName) && NoellesRolesConfig.HANDLER.instance().disabled.contains(roleName)) {
-                        NoellesRolesConfig.HANDLER.instance().disabled.remove(roleName);
-                        NoellesRolesConfig.HANDLER.save();
-                        commandContext.getSource().sendMessage(Text.literal("Unbanned Role"));
-                        return 1;
-                    }
-                }
-                commandContext.getSource().sendMessage(Text.literal("Invalid role name (or role is not in the ban list), use /getRoleNames to get role names.").withColor(Color.RED.getRGB()));
-                return 1;
-            })));
-            dispatcher.register(CommandManager.literal("getRoleNames").executes((commandContext -> {
-                for (TMMRoles.Role role : TMMRoles.ROLES) {
-                    commandContext.getSource().sendMessage(Text.literal(role.identifier().getPath()).withColor(role.color()).append(NoellesRolesConfig.HANDLER.instance().disabled.contains(role.identifier().getPath()) ? Text.literal(" (BANNED)").formatted(Formatting.RED) : Text.literal("")));
-                }
-                return 1;
-            })));
+            ForceRoleCommand.register(dispatcher);
+            SetEnabledRoleCommand.register(dispatcher);
+            ListRolesCommand.register(dispatcher);
         });
     }
 
