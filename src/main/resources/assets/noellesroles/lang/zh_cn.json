@@ -52,15 +52,16 @@
   "announcement.role.recaller": "回溯者",
 
   "announcement.goals.guesser": "猜测平民的角色以将其瞬间击杀。",
-  "announcement.role.guesser": "刺客",
 
   "announcement.goals.mimic": "在其他杀手眼中，你看起来像杀手同伙。但你是平民。",
   "announcement.role.mimic": "模仿者",
 
-  "announcement.modifier.tiny": "微小",
-
   "announcement.goals.better_vigilante": "呃——————",
   "announcement.role.better_vigilante": "更好的义警",
+
+  "announcement.modifier.tiny": "小孩子",
+  "announcement.modifier.chameleon": "变色龙",
+  "announcement.modifier.guesser": "猜测者",
 
   "announcement.goals.vulture": "吃掉足够的尸体后变成杀手！",
   "announcement.role.vulture": "秃鹫",
